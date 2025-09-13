@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import pool from "./db.js"; // Import de la connexion DB
 
 dotenv.config();
 
@@ -12,7 +13,6 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:5174",
-     
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -20,25 +20,31 @@ app.use(
   })
 );
 
+// Middleware pour parser JSON
 app.use(express.json());
 
-// 📄 Route racine simplifiée
+// 📄 Route racine
 app.get("/", (req, res) => {
   res.send("✅ Serveur backend en marche");
 });
 
-// 📌 Routes API
-
-
 // 🏥 Health check
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "healthy",
-    timestamp: new Date().toISOString(),
-    version: "1.0.0",
-    environment: process.env.NODE_ENV || "development",
-    database: "connected", // ⚠️ À rendre dynamique si tu relies une vraie DB
-  });
+app.get("/api/health", async (req, res) => {
+  try {
+    const dbCheck = await pool.query("SELECT NOW()");
+    res.status(200).json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || "development",
+      database: dbCheck.rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "unhealthy",
+      error: err.message,
+    });
+  }
 });
 
 // 🚨 Gestion des erreurs globale
